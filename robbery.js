@@ -12,20 +12,20 @@ module.exports.getAppropriateMoment = function (json, minDuration, workingHours)
     getIntervals(json);
     var workHourFrom = toUTC(readTime(workingHours.from));
     var workHourTo = toUTC(readTime(workingHours.to));
-    appropriateMoment.timeZone = readTime(workingHours.from).timeZone;
+    appropriateMoment.timezone = readTime(workingHours.from).timeZone;
     var monIndex = findMoment(minDuration, workHourFrom, workHourTo);
     if (monIndex != -1) {
-        appropriateMoment.date = getDate(monIndex, 'ПН', appropriateMoment.timeZone);
+        appropriateMoment.date = getDate(monIndex, 'ПН', appropriateMoment.timezone);
         return appropriateMoment;
     }
     var tueIndex = findMoment(minDuration, workHourFrom + 24, workHourTo + 24);
     if (tueIndex != -1) {
-        appropriateMoment.date = getDate(tueIndex, 'ВТ', appropriateMoment.timeZone);
+        appropriateMoment.date = getDate(tueIndex, 'ВТ', appropriateMoment.timezone);
         return appropriateMoment;
     }
     var wedIndex = findMoment(minDuration, workHourFrom + 48, workHourTo + 48);
     if (wedIndex != -1) {
-        appropriateMoment.date = getDate(wedIndex, 'СР', appropriateMoment.timeZone);
+        appropriateMoment.date = getDate(wedIndex, 'СР', appropriateMoment.timezone);
         return appropriateMoment;
     }
     return appropriateMoment;
@@ -41,16 +41,14 @@ module.exports.getStatus = function (moment, robberyMoment) {
 function getDate(index, day, timeZone) {
     var hour = getCorrectHour(index, timeZone);
     var minutes = hours[index] === 1 ? '00' : hours[index] * 60;
-    return day + ' ' + hour + ':' + minutes;
+    return day + ' ' + hour + ':' + minutes + timeZone;
 }
 
-function getCorrectHour(index, timeZone) {
+function getCorrectHour(index) {
     while (index > 23) {
         index = Math.abs(24 - index);
     }
-    var str = index + ':00';
-    var hour = str.split(':')[0];
-    return hour - (-1) * timeZone;
+    return index;
 }
 
 function findMoment(minDuration, from, to) {
