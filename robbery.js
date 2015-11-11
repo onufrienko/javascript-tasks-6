@@ -1,8 +1,9 @@
 'use strict';
 
 var moment = require('./moment');
+var weekDays = ['ПН', 'ВТ', 'СР'];
 var hours = [];
-for (var i = 0; i < 72; i++) {
+for (var i = 0; i < weekDays.length * 24; i++) {
     hours.push(1);
 }
 
@@ -13,20 +14,12 @@ module.exports.getAppropriateMoment = function (json, minDuration, workingHours)
     var workHourFrom = toUTC(readTime(workingHours.from));
     var workHourTo = toUTC(readTime(workingHours.to));
     appropriateMoment.timezone = readTime(workingHours.from).timeZone;
-    var monIndex = findMoment(minDuration, workHourFrom, workHourTo);
-    if (monIndex != -1) {
-        appropriateMoment.date = getDate(monIndex, 'ПН', appropriateMoment.timezone);
-        return appropriateMoment;
-    }
-    var tueIndex = findMoment(minDuration, workHourFrom + 24, workHourTo + 24);
-    if (tueIndex != -1) {
-        appropriateMoment.date = getDate(tueIndex, 'ВТ', appropriateMoment.timezone);
-        return appropriateMoment;
-    }
-    var wedIndex = findMoment(minDuration, workHourFrom + 48, workHourTo + 48);
-    if (wedIndex != -1) {
-        appropriateMoment.date = getDate(wedIndex, 'СР', appropriateMoment.timezone);
-        return appropriateMoment;
+    for (var i = 0; i < weekDays.length; i++) {
+        var index = findMoment(minDuration, workHourFrom + i * 24, workHourTo + i * 24);
+        if (index != -1) {
+            appropriateMoment.date = getDate(index, weekDays[i], appropriateMoment.timezone);
+            return appropriateMoment;
+        }
     }
     return appropriateMoment;
 };
@@ -39,16 +32,9 @@ module.exports.getStatus = function (moment, robberyMoment) {
 };
 
 function getDate(index, day, timeZone) {
-    var hour = getCorrectHour(index, timeZone);
+    var hour = index % 24;
     var minutes = hours[index] === 1 ? '00' : hours[index] * 60;
     return day + ' ' + hour + ':' + minutes + timeZone;
-}
-
-function getCorrectHour(index) {
-    while (index > 23) {
-        index = Math.abs(24 - index);
-    }
-    return index;
 }
 
 function findMoment(minDuration, from, to) {
@@ -101,35 +87,27 @@ function getHour(time) {
         day = getNextDay(day);
         hourUTC = Math.abs(24 - hourUTC);
     }
-    switch (day) {
-        case 'ПН':
-            return hourUTC;
-        case 'ВТ':
-            return hourUTC + 24;
-        case 'СР':
-            return hourUTC + 48;
-    }
+    var hoursUTC = {'ПН': hourUTC, 'ВТ': hourUTC + 24, 'СР': hourUTC + 48};
+    return hoursUTC[day];
 }
 
 function readTime(time) {
     var hourRegExp = /([0-9]{2}:[0-9]{2})/;
-    var zoneRegExp = /((\+{1}|\-{1})[0-9]+)/;
+    var zoneRegExp = /([+-][0-9]+)/;
     var res = {
         day: time.split(' ')[0],
-        hour: time.match(hourRegExp)[0],
+        time: time.match(hourRegExp)[0],
         timeZone: time.match(zoneRegExp)[0]
     };
     return res;
 }
 
 function toUTC(date) {
-    var hour = date.hour.split(':')[0];
+    var hour = date.time.split(':')[0];
     var zone = date.timeZone;
     return hour - zone;
 }
 
 function getNextDay(day) {
-    var dayNumDict = { 'ПН': 0, 'ВТ': 1, 'СР': 2 };
-    var NumDayDict = ['ПН', 'ВТ', 'СР'];
-    return NumDayDict[dayNumDict[day] + 1];
+    return weekDays[(NumDayDict.indexOf(day) + 1) % NumDayDict.length];
 }
