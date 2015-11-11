@@ -1,114 +1,71 @@
 'use strict';
 
-var moment = require('./moment');
-var weekDays = ['ПН', 'ВТ', 'СР'];
-var hours = [];
-for (var i = 0; i < weekDays.length * 24; i++) {
-    hours.push(1);
-}
+var hourRegExp = /([0-9]{2}:[0-9]{2})/;
+var secInDay = 60 * 60 * 24;
+var secInHour = 60 * 60;
 
-module.exports.getAppropriateMoment = function (json, minDuration, workingHours) {
-    var appropriateMoment = moment();
-    var gangBand = JSON.parse(json);
-    getIntervals(json);
-    var workHourFrom = toUTC(readTime(workingHours.from));
-    var workHourTo = toUTC(readTime(workingHours.to));
-    appropriateMoment.timezone = readTime(workingHours.from).timeZone;
-    for (var i = 0; i < weekDays.length; i++) {
-        var index = findMoment(minDuration, workHourFrom + i * 24, workHourTo + i * 24);
-        if (index != -1) {
-            appropriateMoment.date = getDate(index, weekDays[i], appropriateMoment.timezone);
-            return appropriateMoment;
-        }
-    }
-    return appropriateMoment;
-};
+module.exports = function () {
+    return {
+        date: null,
 
-module.exports.getStatus = function (moment, robberyMoment) {
-    if (moment.date < robberyMoment.date) {
-        return robberyMoment.fromMoment(moment);
-    }
-    return 'Ограбление уже идёт!';
-};
+        timezone: null,
 
-function getDate(index, day, timeZone) {
-    var hour = index % 24;
-    hour = hour < 10 ? '0' + hour : hour;
-    var minutes = hours[index] === 1 ? '00' : hours[index] * 60;
-    return day + ' ' + hour + ':' + minutes + timeZone;
-}
+        format: function (pattern) {
+            var day = this.date.split(' ')[0];
+            var time = this.date.match(hourRegExp)[0];
+            var res = pattern.replace('%DD', day);
+            res = res.replace('%HH:%MM', getTime(time, this.timezone));
+            return res;
+        },
 
-function findMoment(minDuration, from, to) {
-    for (var i = from; i < to; i++) {
-        var foundFreeHours = 0;
-        var index = i;
-        while (true) {
-            if (i >= to || hours[i] === 0) {
-                break;
-            } else {
-                foundFreeHours += hours[i] * 60;
-                i++;
-                if (foundFreeHours >= minDuration) {
-                    return index;
-                }
+        fromMoment: function (moment) {
+            var verb = declineWord(2, ['остался', 'осталось', 'осталось']) + ' ';
+            var days = '';
+            var hours = '';
+            var minutes = '';
+            var diff = getSec(this.date) - getSec(moment.date);
+            var daysCount = parseInt(diff / secInDay);
+            if (daysCount >= 1) {
+                diff -= daysCount * secInDay;
+                verb = declineWord(daysCount, ['остался', 'осталось', 'осталось']) + ' ';
+                days = daysCount + ' ';
+                days += declineWord(daysCount, ['день', 'дня', 'дней']) + ' ';
             }
-        }
-    }
-    return -1;
-}
-
-function getIntervals(json) {
-    var robbers = JSON.parse(json);
-    Object.keys(robbers).forEach(function (robber) {
-        robbers[robber].forEach(function (busyTime) {
-            var fromHour = getHour(busyTime.from);
-            var toHour = getHour(busyTime.to);
-            for (var i = fromHour; i < toHour; i++) {
-                hours[i] = 0;
+            var hoursCount = parseInt(diff / secInHour);
+            if (hoursCount >= 1) {
+                diff -= hoursCount * secInHour;
+                hours = hoursCount + ' ';
+                hours += declineWord(hoursCount, ['час', 'часа', 'часов']) + ' ';
             }
-            considerMinutes(busyTime.from, fromHour);
-            considerMinutes(busyTime.to, toHour);
-        });
-    });
-}
-
-function considerMinutes(time, index) {
-    var minutesRegExp = /(:{1}[0-9]{2})/;
-    var minutes = parseInt(time.match(minutesRegExp)[0].split(':')[1]);
-    if (minutes != 0) {
-        hours[index] = minutes / 60;
-    }
-}
-
-function getHour(time) {
-    var date = readTime(time);
-    var hourUTC = toUTC(date);
-    var day = date.day;
-    while (hourUTC > 23) {
-        day = getNextDay(day);
-        hourUTC = Math.abs(24 - hourUTC);
-    }
-    var hoursUTC = {'ПН': hourUTC, 'ВТ': hourUTC + 24, 'СР': hourUTC + 48};
-    return hoursUTC[day];
-}
-
-function readTime(time) {
-    var hourRegExp = /([0-9]{2}:[0-9]{2})/;
-    var zoneRegExp = /([+-][0-9]+)/;
-    var res = {
-        day: time.split(' ')[0],
-        time: time.match(hourRegExp)[0],
-        timeZone: time.match(zoneRegExp)[0]
+            var minutesCount = parseInt(diff / 60);
+            if (minutesCount != 0) {
+                minutes = minutesCount + ' ';
+                minutes += declineWord(minutesCount, ['минута', 'минуты', 'минут']) + ' ';
+            }
+            return 'До ограбления ' + verb + days + hours + minutes;
+        }
     };
-    return res;
+};
+
+function getTime(time, timezone) {
+    var hour = time.split(':')[0];
+    var hourInZone = hour - (-1) * timezone;
+    return hourInZone + ':' + time.split(':')[1];
 }
 
-function toUTC(date) {
-    var hour = date.time.split(':')[0];
-    var zone = date.timeZone;
-    return hour - zone;
+function declineWord(number, declinations) {
+    var cases = [2, 0, 1, 1, 1, 2];
+    return declinations[ (number % 100 > 4 && number % 100 < 20) ?
+        2 : cases[ (number % 10 < 5) ? number % 10 : 5] ];
 }
 
-function getNextDay(day) {
-    return weekDays[(weekDays.indexOf(day) + 1) % weekDays.length];
+function getSec(date) {
+    var time = date.match(hourRegExp);
+    var data = {
+        day: date.split(' ')[0],
+        hour: parseInt(time[0].split(':')[0]),
+        minutes: parseInt(time[0].split(':')[1])
+    };
+    var daysPassed = data.day === 'ПН' ? 0 : data.day === 'ВТ' ? 1 : 2;
+    return daysPassed * secInDay + data.hour * secInHour + data.minutes * 60;
 }
