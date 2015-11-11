@@ -33,7 +33,6 @@ module.exports.getStatus = function (moment, robberyMoment) {
 
 function getDate(index, day, timeZone) {
     var hour = index % 24;
-    hour = hour < 10 ? '0' + hour : hour;
     var minutes = hours[index] === 1 ? '00' : hours[index] * 60;
     return day + ' ' + hour + ':' + minutes + timeZone;
 }
