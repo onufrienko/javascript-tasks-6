@@ -50,6 +50,10 @@ module.exports = function () {
 function getTime(time, timezone) {
     var hour = time.split(':')[0];
     var hourInZone = hour - (-1) * timezone;
+    if (hourInZone < 0) {
+        hourInZone += 24;
+    }
+    hourInZone = hourInZone < 10 ? '0' + hourInZone : hourInZone;
     return hourInZone + ':' + time.split(':')[1];
 }
 
@@ -63,8 +67,8 @@ function getSec(date) {
     var time = date.match(hourRegExp);
     var data = {
         day: date.split(' ')[0],
-        hour: parseInt(time[0].split(':')[0]),
-        minutes: parseInt(time[0].split(':')[1])
+        minutes: parseInt(time[0].split(':')[1]),
+        hour: parseInt(time[0].split(':')[0])
     };
     var daysPassed = data.day === 'ПН' ? 0 : data.day === 'ВТ' ? 1 : 2;
     return daysPassed * secInDay + data.hour * secInHour + data.minutes * 60;
