@@ -1,6 +1,6 @@
 'use strict';
 
-var hourRegExp = /([0-9]{2}:[0-9]{2})/;
+var hourRegExp = /([0-9]{1,2}:[0-9]{2})/;
 var secInDay = 60 * 60 * 24;
 var secInHour = 60 * 60;
 
