@@ -1,6 +1,7 @@
 'use strict';
 
 var hourRegExp = /([0-9]{2}:[0-9]{2})/;
+var zoneRegExp = /([+-][0-9]+)/;
 var secInDay = 60 * 60 * 24;
 var secInHour = 60 * 60;
 
@@ -19,11 +20,15 @@ module.exports = function () {
         },
 
         fromMoment: function (moment) {
+            moment = formatMoment(moment.date);
             var verb = declineWord(2, ['остался', 'осталось', 'осталось']) + ' ';
             var days = '';
             var hours = '';
             var minutes = '';
-            var diff = getSec(this.date) - getSec(moment.date);
+            var diff = getSec(this.date) - getSec(moment);
+            if (diff <= 0) {
+                return 'Ограбление уже идёт';
+            }
             var daysCount = parseInt(diff / secInDay);
             if (daysCount >= 1) {
                 diff -= daysCount * secInDay;
@@ -72,4 +77,20 @@ function getSec(date) {
     };
     var daysPassed = data.day === 'ПН' ? 0 : data.day === 'ВТ' ? 1 : 2;
     return daysPassed * secInDay + data.hour * secInHour + data.minutes * 60;
+}
+
+function formatMoment(moment) {
+    var day = moment.split(' ')[0];
+    var time = moment.match(hourRegExp)[0];
+    var zone = moment.match(zoneRegExp)[0];
+    var hour = time.split(':')[0];
+    if (Number(hour) < zone) {
+        hour = Number(hour) - zone + 24;
+        var weekDays = ['ПН', 'ВТ', 'СР'];
+        day = weekDays[(weekDays.indexOf(day) + 1) % weekDays.length];
+    } else {
+        hour -= zone;
+    }
+    hour = hour < 10 ? '0' + hour : hour;
+    return day + ' ' + hour + ':' + time.split(':')[1] + zone;
 }
