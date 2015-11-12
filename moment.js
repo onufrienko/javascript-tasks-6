@@ -7,25 +7,37 @@ var secInHour = 60 * 60;
 
 module.exports = function () {
     return {
-        date: null,
+        set date(dateStr) {
+            this.day = dateStr.split(' ')[0];
+            this.timezone = dateStr.match(zoneRegExp)[0];
+            this.time = getTimeInUTC(dateStr.match(hourRegExp)[0], this.timezone);
+            this._date = getSec(this.day, this.time);
+        },
+
+        get date () {
+            return this._date;
+        },
+
+        _date: null,
+
+        day: null,
+
+        time: null,
 
         timezone: null,
 
         format: function (pattern) {
-            var day = this.date.split(' ')[0];
-            var time = this.date.match(hourRegExp)[0];
-            var res = pattern.replace('%DD', day);
-            res = res.replace('%HH:%MM', getTime(time, this.timezone));
+            var res = pattern.replace('%DD', this.day);
+            res = res.replace('%HH:%MM', getTime(this.time, this.timezone));
             return res;
         },
 
         fromMoment: function (moment) {
-            moment = formatMoment(moment.date);
             var verb = declineWord(2, ['остался', 'осталось', 'осталось']) + ' ';
             var days = '';
             var hours = '';
             var minutes = '';
-            var diff = getSec(this.date) - getSec(moment);
+            var diff = getSec(this.day, this.time) - getSec(moment.day, moment.time);
             if (diff <= 0) {
                 return 'Ограбление уже идёт';
             }
@@ -68,29 +80,22 @@ function declineWord(number, declinations) {
         2 : cases[ (number % 10 < 5) ? number % 10 : 5] ];
 }
 
-function getSec(date) {
-    var time = date.match(hourRegExp);
-    var data = {
-        day: date.split(' ')[0],
-        minutes: parseInt(time[0].split(':')[1]),
-        hour: parseInt(time[0].split(':')[0])
-    };
-    var daysPassed = data.day === 'ПН' ? 0 : data.day === 'ВТ' ? 1 : 2;
-    return daysPassed * secInDay + data.hour * secInHour + data.minutes * 60;
+function getSec(day, time) {
+    var minutes = parseInt(time.split(':')[1]);
+    var hour = parseInt(time.split(':')[0]);
+    var daysPassed = day === 'ПН' ? 0 : day === 'ВТ' ? 1 : 2;
+    return daysPassed * secInDay + hour * secInHour + minutes * 60;
 }
 
-function formatMoment(moment) {
-    var day = moment.split(' ')[0];
-    var time = moment.match(hourRegExp)[0];
-    var zone = moment.match(zoneRegExp)[0];
+function getTimeInUTC(time, zone) {
     var hour = time.split(':')[0];
-    if (Number(hour) < zone) {
-        hour = Number(hour) - zone + 24;
+    if (parseInt(hour) < zone) {
+        hour = parseInt(hour) - zone + 24;
         var weekDays = ['ПН', 'ВТ', 'СР'];
         day = weekDays[(weekDays.indexOf(day) + 1) % weekDays.length];
     } else {
         hour -= zone;
     }
     hour = hour < 10 ? '0' + hour : hour;
-    return day + ' ' + hour + ':' + time.split(':')[1] + zone;
+    return hour + ':' + time.split(':')[1];
 }
