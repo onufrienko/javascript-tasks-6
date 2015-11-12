@@ -106,6 +106,9 @@ function readTime(time) {
 function toUTC(date) {
     var hour = date.time.split(':')[0];
     var zone = date.timeZone;
+    if (Number(hour) < zone) {
+        return Number(hour) - zone + 24;
+    }
     return hour - zone;
 }
 
